@@ -12,11 +12,8 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="MaterialDesignThemes" />
-		<PackageReference Include="H.NotifyIcon.Wpf" />
-		<PackageReference Include="ReactiveUI.Fody">
-			<TreatAsUsed>true</TreatAsUsed>
-		</PackageReference>
+		<PackageReference Include="WPF-UI" />
+		<PackageReference Include="WPF-UI.Tray" />
 		<PackageReference Include="ReactiveUI.WPF" />
 	</ItemGroup>
 
