@@ -16,7 +16,6 @@
     <PackageVersion Include="NLog" Version="6.1.2" />
     <PackageVersion Include="sqlite-net-pcl" Version="1.9.172" />
     <PackageVersion Include="TaskScheduler" Version="2.12.2" />
-    <PackageVersion Include="WebDav.Client" Version="2.9.0" />
     <PackageVersion Include="YamlDotNet" Version="16.3.0" />
     <!-- Utilities -->
     <PackageVersion Include="QRCoder" Version="1.8.0" />

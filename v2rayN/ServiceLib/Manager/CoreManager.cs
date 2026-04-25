@@ -1,8 +1,5 @@
 namespace ServiceLib.Manager;
 
-/// <summary>
-/// Core process processing class
-/// </summary>
 public class CoreManager
 {
     private static readonly Lazy<CoreManager> _instance = new(() => new());
@@ -11,7 +8,6 @@ public class CoreManager
     private WindowsJobService? _processJob;
     private ProcessService? _processService;
     private ProcessService? _processPreService;
-    private bool _linuxSudo = false;
     private Func<bool, string, Task>? _updateFunc;
     private const string _tag = "CoreHandler";
 
@@ -20,7 +16,6 @@ public class CoreManager
         _config = config;
         _updateFunc = updateFunc;
 
-        //Copy the bin folder to the storage location (for init)
         if (Environment.GetEnvironmentVariable(Global.LocalAppData) == "1")
         {
             var fromPath = Utils.GetBaseDirectory("bin");
@@ -36,15 +31,6 @@ public class CoreManager
             var coreInfo = CoreInfoManager.Instance.GetCoreInfo();
             foreach (var it in coreInfo)
             {
-                if (it.CoreType == ECoreType.v2rayN)
-                {
-                    if (Utils.UpgradeAppExists(out var upgradeFileName))
-                    {
-                        await Utils.SetLinuxChmod(upgradeFileName);
-                    }
-                    continue;
-                }
-
                 foreach (var name in it.CoreExes)
                 {
                     var exe = Utils.GetBinPath(Utils.GetExeName(name), it.CoreType.ToString());
@@ -57,8 +43,21 @@ public class CoreManager
         }
     }
 
-    /// <param name="mainContext">Resolved main context (with pre-socks ports already merged if applicable).</param>
-    /// <param name="preContext">Optional pre-socks context passed to <see cref="CoreStartPreService"/>.</param>
+    /// <summary>
+    /// Convenience entry point for the ViewModel: builds a minimal context and starts the core.
+    /// </summary>
+    public async Task LoadCoreFromProfile(ProfileItem profile)
+    {
+        var context = new CoreConfigContext
+        {
+            Node = profile,
+            RunCoreType = ECoreType.sing_box,
+            AppConfig = AppManager.Instance.Config,
+            IsTunEnabled = true,
+        };
+        await LoadCore(context, null);
+    }
+
     public async Task LoadCore(CoreConfigContext? mainContext, CoreConfigContext? preContext)
     {
         if (mainContext == null)
@@ -99,57 +98,10 @@ public class CoreManager
         }
     }
 
-    public async Task<ProcessService?> LoadCoreConfigSpeedtest(List<ServerTestItem> selecteds)
-    {
-        var coreType = selecteds.FirstOrDefault()?.CoreType == ECoreType.sing_box ? ECoreType.sing_box : ECoreType.Xray;
-        var fileName = string.Format(Global.CoreSpeedtestConfigFileName, Utils.GetGuid(false));
-        var configPath = Utils.GetBinConfigPath(fileName);
-        var result = await CoreConfigHandler.GenerateClientSpeedtestConfig(_config, configPath, selecteds, coreType);
-        await UpdateFunc(false, result.Msg);
-        if (result.Success != true)
-        {
-            return null;
-        }
-
-        await UpdateFunc(false, string.Format(ResUI.StartService, DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss")));
-        await UpdateFunc(false, configPath);
-
-        var coreInfo = CoreInfoManager.Instance.GetCoreInfo(coreType);
-        return await RunProcess(coreInfo, fileName, true, false);
-    }
-
-    public async Task<ProcessService?> LoadCoreConfigSpeedtest(ServerTestItem testItem)
-    {
-        var node = await AppManager.Instance.GetProfileItem(testItem.IndexId);
-        if (node is null)
-        {
-            return null;
-        }
-
-        var fileName = string.Format(Global.CoreSpeedtestConfigFileName, Utils.GetGuid(false));
-        var configPath = Utils.GetBinConfigPath(fileName);
-        var (context, _) = await CoreConfigContextBuilder.Build(_config, node);
-        var result = await CoreConfigHandler.GenerateClientSpeedtestConfig(_config, context, testItem, configPath);
-        if (result.Success != true)
-        {
-            return null;
-        }
-
-        var coreType = context.RunCoreType;
-        var coreInfo = CoreInfoManager.Instance.GetCoreInfo(coreType);
-        return await RunProcess(coreInfo, fileName, true, false);
-    }
-
     public async Task CoreStop()
     {
         try
         {
-            if (_linuxSudo)
-            {
-                await CoreAdminManager.Instance.KillProcessAsLinuxSudo();
-                _linuxSudo = false;
-            }
-
             if (_processService != null)
             {
                 await _processService.StopAsync();
@@ -180,10 +132,7 @@ public class CoreManager
 
         var displayLog = node.ConfigType != EConfigType.Custom || node.DisplayLog;
         var proc = await RunProcess(coreInfo, Global.CoreConfigFileName, displayLog, true);
-        if (proc is null)
-        {
-            return;
-        }
+        if (proc is null) return;
         _processService = proc;
     }
 
@@ -198,10 +147,7 @@ public class CoreManager
             {
                 var coreInfo = CoreInfoManager.Instance.GetCoreInfo(preCoreType);
                 var proc = await RunProcess(coreInfo, Global.CorePreConfigFileName, true, true);
-                if (proc is null)
-                {
-                    return;
-                }
+                if (proc is null) return;
                 _processPreService = proc;
             }
         }
@@ -227,16 +173,6 @@ public class CoreManager
 
         try
         {
-            if (mayNeedSudo
-                && _config.TunModeItem.EnableTun
-                && (coreInfo.CoreType is ECoreType.sing_box or ECoreType.mihomo)
-                && Utils.IsNonWindows())
-            {
-                _linuxSudo = true;
-                await CoreAdminManager.Instance.Init(_config, _updateFunc);
-                return await CoreAdminManager.Instance.RunProcessAsLinuxSudo(fileName, coreInfo, configPath);
-            }
-
             return await RunProcessNormal(fileName, coreInfo, configPath, displayLog);
         }
         catch (Exception ex)
@@ -266,7 +202,6 @@ public class CoreManager
         );
 
         await procService.StartAsync();
-
         await Task.Delay(100);
 
         if (procService is null or { HasExited: true })
@@ -274,7 +209,6 @@ public class CoreManager
             throw new Exception(ResUI.FailedToRunCore);
         }
         AddProcessJob(procService.Handle);
-
         return procService;
     }
 
@@ -283,11 +217,7 @@ public class CoreManager
         if (Utils.IsWindows())
         {
             _processJob ??= new();
-            try
-            {
-                _processJob?.AddProcess(processHandle);
-            }
-            catch { }
+            try { _processJob?.AddProcess(processHandle); } catch { }
         }
     }
 

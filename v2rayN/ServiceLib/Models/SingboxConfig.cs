@@ -109,6 +109,7 @@ public class Inbound4Sbox
     public bool? strict_route { get; set; }
     public bool? endpoint_independent_nat { get; set; }
     public string? stack { get; set; }
+    public bool? sniff { get; set; }
     public List<User4Sbox> users { get; set; }
 }
 

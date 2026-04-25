@@ -37,15 +37,7 @@ public sealed class AppManager
 
     public bool IsRunningCore(ECoreType type)
     {
-        switch (type)
-        {
-            case ECoreType.Xray when RunningCoreType is ECoreType.Xray or ECoreType.v2fly or ECoreType.v2fly_v5:
-            case ECoreType.sing_box when RunningCoreType is ECoreType.sing_box or ECoreType.mihomo:
-                return true;
-
-            default:
-                return false;
-        }
+        return type == ECoreType.sing_box && RunningCoreType == ECoreType.sing_box;
     }
 
     #endregion Property
@@ -117,15 +109,11 @@ public sealed class AppManager
         {
             Logging.SaveLog("AppExitAsync Begin");
 
-            await SysProxyHandler.UpdateSysProxy(_config, true);
             AppEvents.AppExitRequested.Publish();
-            await Task.Delay(50); //Wait for AppExitRequested to be processed
+            await Task.Delay(50);
 
             await ConfigHandler.SaveConfig(_config);
-            await ProfileExManager.Instance.SaveTo();
-            await StatisticsManager.Instance.SaveTo();
             await CoreManager.Instance.CoreStop();
-            StatisticsManager.Instance.Close();
 
             Logging.SaveLog("AppExitAsync End");
         }
@@ -630,30 +618,12 @@ public sealed class AppManager
 
     public List<string> GetShadowsocksSecurities(ProfileItem profileItem)
     {
-        var coreType = GetCoreType(profileItem, EConfigType.Shadowsocks);
-        switch (coreType)
-        {
-            case ECoreType.v2fly:
-                return Global.SsSecurities;
-
-            case ECoreType.Xray:
-                return Global.SsSecuritiesInXray;
-
-            case ECoreType.sing_box:
-                return Global.SsSecuritiesInSingbox;
-        }
         return Global.SsSecuritiesInSingbox;
     }
 
     public ECoreType GetCoreType(ProfileItem profileItem, EConfigType eConfigType)
     {
-        if (profileItem?.CoreType != null)
-        {
-            return (ECoreType)profileItem.CoreType;
-        }
-
-        var item = _config.CoreTypeItem?.FirstOrDefault(it => it.ConfigType == eConfigType);
-        return item?.CoreType ?? ECoreType.Xray;
+        return ECoreType.sing_box;
     }
 
     #endregion Core Type

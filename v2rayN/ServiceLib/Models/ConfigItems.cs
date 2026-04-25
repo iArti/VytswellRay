@@ -67,6 +67,7 @@ public class GrpcItem
 public class GUIItem
 {
     public bool AutoRun { get; set; }
+    public bool AutoConnect { get; set; }
     public bool EnableStatistics { get; set; }
     public bool DisplayRealTimeSpeed { get; set; }
     public bool KeepOlderDedupl { get; set; }
@@ -74,6 +75,8 @@ public class GUIItem
     public int TrayMenuServersLimit { get; set; } = 20;
     public bool EnableHWA { get; set; } = false;
     public bool EnableLog { get; set; } = true;
+    // Hidden setting — revealed by tapping version label 7 times in Settings
+    public bool RouteBittorrentDirect { get; set; } = true;
 }
 
 [Serializable]

@@ -11,7 +11,6 @@
 		</PackageReference>
 		<PackageReference Include="sqlite-net-pcl" />
 		<PackageReference Include="NLog" />
-		<PackageReference Include="WebDav.Client" />
 		<PackageReference Include="YamlDotNet" />
 		<PackageReference Include="QRCoder" />
 		<PackageReference Include="CliWrap" />
@@ -20,32 +19,16 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<EmbeddedResource Include="Sample\clash_mixin_yaml" />
-		<EmbeddedResource Include="Sample\clash_tun_yaml" />
-		<EmbeddedResource Include="Sample\custom_routing_black" />
-		<EmbeddedResource Include="Sample\custom_routing_global" />
-		<EmbeddedResource Include="Sample\custom_routing_white" />
 		<EmbeddedResource Include="Sample\dns_singbox_normal" />
-		<EmbeddedResource Include="Sample\dns_v2ray_normal" />
 		<EmbeddedResource Include="Sample\kill_as_sudo_linux_sh" />
-		<EmbeddedResource Include="Sample\kill_as_sudo_osx_sh" />
-		<EmbeddedResource Include="Sample\pac" />
-		<EmbeddedResource Include="Sample\proxy_set_linux_sh" /> 
-		<EmbeddedResource Include="Sample\proxy_set_osx_sh" />
-		<EmbeddedResource Include="Sample\SampleClientConfig" />
-		<EmbeddedResource Include="Sample\SampleHttpRequest" />
-		<EmbeddedResource Include="Sample\SampleHttpResponse" />
-		<EmbeddedResource Include="Sample\SampleInbound" />
-		<EmbeddedResource Include="Sample\SampleOutbound" />
-		<EmbeddedResource Include="Sample\SampleTunInbound" />
-		<EmbeddedResource Include="Sample\SampleTunRules" />
+		<EmbeddedResource Include="Sample\proxy_set_linux_sh" />
 		<EmbeddedResource Include="Sample\SingboxSampleClientConfig" />
 		<EmbeddedResource Include="Sample\SingboxSampleOutbound" />
 		<EmbeddedResource Include="Sample\tun_singbox_dns" />
 		<EmbeddedResource Include="Sample\tun_singbox_inbound" />
 		<EmbeddedResource Include="Sample\tun_singbox_rules" />
 		<EmbeddedResource Include="Sample\linux_autostart_config" />
-        <EmbeddedResource Include="Sample\singbox_fakeip_filter" />
+		<EmbeddedResource Include="Sample\singbox_fakeip_filter" />
 	</ItemGroup>
 
 	<ItemGroup>

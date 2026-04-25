@@ -136,19 +136,6 @@ public partial class CoreConfigSingboxService
                             if (_node.StreamSecurity == Global.StreamSecurity)
                             {
                                 pluginArgs += "tls;";
-                                var certs = CertPemManager.ParsePemChain(_node.Cert);
-                                if (certs.Count > 0)
-                                {
-                                    var cert = certs.First();
-                                    const string beginMarker = "-----BEGIN CERTIFICATE-----\n";
-                                    const string endMarker = "\n-----END CERTIFICATE-----";
-
-                                    var base64Content = cert.Replace(beginMarker, "").Replace(endMarker, "").Trim();
-
-                                    base64Content = base64Content.Replace("=", "\\=");
-
-                                    pluginArgs += $"certRaw={base64Content};";
-                                }
                             }
                             if (pluginArgs.Length > 0)
                             {
@@ -410,12 +397,7 @@ public partial class CoreConfigSingboxService
             }
             if (_node.StreamSecurity == Global.StreamSecurity)
             {
-                var certs = CertPemManager.ParsePemChain(_node.Cert);
-                if (certs.Count > 0)
-                {
-                    tls.certificate = certs;
-                    tls.insecure = false;
-                }
+                // no custom cert injection
             }
             else if (_node.StreamSecurity == Global.StreamSecurityReality)
             {

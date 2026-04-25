@@ -67,19 +67,6 @@ public class ShadowsocksFmt : BaseFmt
             if (item.StreamSecurity == Global.StreamSecurity)
             {
                 pluginArgs += "tls;";
-                var certs = CertPemManager.ParsePemChain(item.Cert);
-                if (certs.Count > 0)
-                {
-                    var cert = certs.First();
-                    const string beginMarker = "-----BEGIN CERTIFICATE-----\n";
-                    const string endMarker = "\n-----END CERTIFICATE-----";
-
-                    var base64Content = cert.Replace(beginMarker, "").Replace(endMarker, "").Trim();
-
-                    base64Content = base64Content.Replace("=", "\\=");
-
-                    pluginArgs += $"certRaw={base64Content};";
-                }
             }
             if (pluginArgs.Length > 0)
             {

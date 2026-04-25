@@ -878,11 +878,8 @@ public static class ConfigHandler
         {
             return -1;
         }
-        var lstServerStat = (config.GuiItem.EnableStatistics ? StatisticsManager.Instance.ServerStat : null) ?? [];
         var lstProfileExs = await ProfileExManager.Instance.GetProfileExs();
         var lstProfile = (from t in lstModel
-                          join t2 in lstServerStat on t.IndexId equals t2.IndexId into t2b
-                          from t22 in t2b.DefaultIfEmpty()
                           join t3 in lstProfileExs on t.IndexId equals t3.IndexId into t3b
                           from t33 in t3b.DefaultIfEmpty()
                           select new ProfileItemModel
@@ -892,16 +889,11 @@ public static class ConfigHandler
                               Remarks = t.Remarks,
                               Address = t.Address,
                               Port = t.Port,
-                              //Security = t.Security,
                               Network = t.Network,
                               StreamSecurity = t.StreamSecurity,
                               Delay = t33?.Delay ?? 0,
                               Speed = t33?.Speed ?? 0,
                               Sort = t33?.Sort ?? 0,
-                              TodayDown = (t22?.TodayDown ?? 0).ToString("D16"),
-                              TodayUp = (t22?.TodayUp ?? 0).ToString("D16"),
-                              TotalDown = (t22?.TotalDown ?? 0).ToString("D16"),
-                              TotalUp = (t22?.TotalUp ?? 0).ToString("D16"),
                           }).ToList();
 
         Enum.TryParse(colName, true, out EServerColName name);
@@ -919,10 +911,6 @@ public static class ConfigHandler
                 EServerColName.DelayVal => lstProfile.OrderBy(t => t.Delay).ToList(),
                 EServerColName.SpeedVal => lstProfile.OrderBy(t => t.Speed).ToList(),
                 EServerColName.SubRemarks => lstProfile.OrderBy(t => t.Subid).ToList(),
-                EServerColName.TodayDown => lstProfile.OrderBy(t => t.TodayDown).ToList(),
-                EServerColName.TodayUp => lstProfile.OrderBy(t => t.TodayUp).ToList(),
-                EServerColName.TotalDown => lstProfile.OrderBy(t => t.TotalDown).ToList(),
-                EServerColName.TotalUp => lstProfile.OrderBy(t => t.TotalUp).ToList(),
                 _ => lstProfile
             };
         }
@@ -939,10 +927,6 @@ public static class ConfigHandler
                 EServerColName.DelayVal => lstProfile.OrderByDescending(t => t.Delay).ToList(),
                 EServerColName.SpeedVal => lstProfile.OrderByDescending(t => t.Speed).ToList(),
                 EServerColName.SubRemarks => lstProfile.OrderByDescending(t => t.Subid).ToList(),
-                EServerColName.TodayDown => lstProfile.OrderByDescending(t => t.TodayDown).ToList(),
-                EServerColName.TodayUp => lstProfile.OrderByDescending(t => t.TodayUp).ToList(),
-                EServerColName.TotalDown => lstProfile.OrderByDescending(t => t.TotalDown).ToList(),
-                EServerColName.TotalUp => lstProfile.OrderByDescending(t => t.TotalUp).ToList(),
                 _ => lstProfile
             };
         }
@@ -1300,7 +1284,7 @@ public static class ConfigHandler
         var profile = new ProfileItem
         {
             IndexId = indexId,
-            CoreType = ECoreType.Xray,
+            CoreType = ECoreType.sing_box,
             ConfigType = EConfigType.PolicyGroup,
             Remarks = remark,
             IsSub = false
@@ -1368,7 +1352,7 @@ public static class ConfigHandler
             var profile = new ProfileItem
             {
                 IndexId = indexId,
-                CoreType = ECoreType.Xray,
+                CoreType = ECoreType.sing_box,
                 ConfigType = EConfigType.PolicyGroup,
                 Remarks = remark,
                 IsSub = false
@@ -1438,7 +1422,7 @@ public static class ConfigHandler
         else if (node.ConfigType == EConfigType.Custom
             && node.PreSocksPort is > 0 and <= 65535)
         {
-            var preCoreType = config.TunModeItem.EnableTun ? ECoreType.sing_box : ECoreType.Xray;
+            var preCoreType = ECoreType.sing_box;
             itemSocks = new ProfileItem()
             {
                 CoreType = preCoreType,
@@ -1596,11 +1580,6 @@ public static class ConfigHandler
         {
             lstProfiles = SingboxFmt.ResolveFullArray(strData, subRemarks);
         }
-        //Is v2ray array configuration
-        if (lstProfiles is null || lstProfiles.Count <= 0)
-        {
-            lstProfiles = V2rayFmt.ResolveFullArray(strData, subRemarks);
-        }
         if (lstProfiles != null && lstProfiles.Count > 0)
         {
             if (isSub && subid.IsNotEmpty())
@@ -1625,27 +1604,10 @@ public static class ConfigHandler
         }
 
         ProfileItem? profileItem = null;
-        //Is sing-box configuration
         if (profileItem is null)
         {
             profileItem = SingboxFmt.ResolveFull(strData, subRemarks);
         }
-        //Is v2ray configuration
-        if (profileItem is null)
-        {
-            profileItem = V2rayFmt.ResolveFull(strData, subRemarks);
-        }
-        //Is Html Page
-        if (profileItem is null && HtmlPageFmt.IsHtmlPage(strData))
-        {
-            return -1;
-        }
-        //Is Clash configuration
-        if (profileItem is null)
-        {
-            profileItem = ClashFmt.ResolveFull(strData, subRemarks);
-        }
-        //Is hysteria configuration
         if (profileItem is null)
         {
             profileItem = Hysteria2Fmt.ResolveFull2(strData, subRemarks);
@@ -1782,7 +1744,7 @@ public static class ConfigHandler
                 var existItem = FindMatchedProfileItem(lstOriSub, item);
                 if (existItem != null)
                 {
-                    await StatisticsManager.Instance.CloneServerStatItem(existItem.IndexId, item.IndexId);
+                    // stats clone removed
                 }
             }
         }
@@ -2358,14 +2320,6 @@ public static class ConfigHandler
 
         if (items.Count <= 0)
         {
-            var item = new DNSItem()
-            {
-                Remarks = "V2ray",
-                CoreType = ECoreType.Xray,
-                Enabled = false,
-            };
-            await SaveDNSItems(config, item);
-
             var item2 = new DNSItem()
             {
                 Remarks = "sing-box",
@@ -2494,13 +2448,6 @@ public static class ConfigHandler
         var items = await AppManager.Instance.FullConfigTemplateItem();
         if (items.Count <= 0)
         {
-            var item = new FullConfigTemplateItem()
-            {
-                Remarks = "V2ray",
-                CoreType = ECoreType.Xray,
-            };
-            await SaveFullConfigTemplate(config, item);
-
             var item2 = new FullConfigTemplateItem()
             {
                 Remarks = "sing-box",
@@ -2565,13 +2512,11 @@ public static class ConfigHandler
                 config.ConstItem.SrsSourceUrl = Global.SingboxRulesetSources[1];
                 config.ConstItem.RouteRulesTemplateSourceUrl = Global.RoutingRulesSources[1];
 
-                var xrayDnsRussia = await GetExternalDNSItem(ECoreType.Xray, Global.DNSTemplateSources[1] + "v2ray.json");
                 var singboxDnsRussia = await GetExternalDNSItem(ECoreType.sing_box, Global.DNSTemplateSources[1] + "sing_box.json");
                 var simpleDnsRussia = await GetExternalSimpleDNSItem(Global.DNSTemplateSources[1] + "simple_dns.json");
 
                 if (simpleDnsRussia == null)
                 {
-                    xrayDnsRussia.Enabled = true;
                     singboxDnsRussia.Enabled = true;
                     config.SimpleDNSItem = InitBuiltinSimpleDNS();
                 }
@@ -2579,7 +2524,6 @@ public static class ConfigHandler
                 {
                     config.SimpleDNSItem = simpleDnsRussia;
                 }
-                await SaveDNSItems(config, xrayDnsRussia);
                 await SaveDNSItems(config, singboxDnsRussia);
                 break;
 
@@ -2588,13 +2532,11 @@ public static class ConfigHandler
                 config.ConstItem.SrsSourceUrl = Global.SingboxRulesetSources[2];
                 config.ConstItem.RouteRulesTemplateSourceUrl = Global.RoutingRulesSources[2];
 
-                var xrayDnsIran = await GetExternalDNSItem(ECoreType.Xray, Global.DNSTemplateSources[2] + "v2ray.json");
                 var singboxDnsIran = await GetExternalDNSItem(ECoreType.sing_box, Global.DNSTemplateSources[2] + "sing_box.json");
                 var simpleDnsIran = await GetExternalSimpleDNSItem(Global.DNSTemplateSources[2] + "simple_dns.json");
 
                 if (simpleDnsIran == null)
                 {
-                    xrayDnsIran.Enabled = true;
                     singboxDnsIran.Enabled = true;
                     config.SimpleDNSItem = InitBuiltinSimpleDNS();
                 }
@@ -2602,7 +2544,6 @@ public static class ConfigHandler
                 {
                     config.SimpleDNSItem = simpleDnsIran;
                 }
-                await SaveDNSItems(config, xrayDnsIran);
                 await SaveDNSItems(config, singboxDnsIran);
                 break;
         }

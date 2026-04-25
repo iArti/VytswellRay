@@ -1,7 +1,7 @@
 namespace ServiceLib.Models;
 
 [Serializable]
-public class ProfileItemModel : ReactiveObject
+public class ProfileItemModel
 {
     public bool IsActive { get; set; }
     public string IndexId { get; set; }
@@ -14,29 +14,10 @@ public class ProfileItemModel : ReactiveObject
     public string Subid { get; set; }
     public string SubRemarks { get; set; }
     public int Sort { get; set; }
-
-    [Reactive]
     public int Delay { get; set; }
-
     public decimal Speed { get; set; }
-
-    [Reactive]
     public string DelayVal { get; set; }
-
-    [Reactive]
     public string SpeedVal { get; set; }
-
-    [Reactive]
-    public string TodayUp { get; set; }
-
-    [Reactive]
-    public string TodayDown { get; set; }
-
-    [Reactive]
-    public string TotalUp { get; set; }
-
-    [Reactive]
-    public string TotalDown { get; set; }
 
     public string GetSummary()
     {
@@ -45,7 +26,6 @@ public class ProfileItemModel : ReactiveObject
         {
             summary += $"({Address}:{Port})";
         }
-
         return summary;
     }
 }

@@ -7,48 +7,9 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
     private readonly int _timeout = 30;
     private static readonly string _tag = "UpdateService";
 
-    public async Task CheckUpdateGuiN(bool preRelease)
+    public async Task CheckUpdateCore(bool preRelease)
     {
-        var url = string.Empty;
-        var fileName = string.Empty;
-
-        DownloadService downloadHandle = new();
-        downloadHandle.UpdateCompleted += (sender2, args) =>
-        {
-            if (args.Success)
-            {
-                _ = UpdateFunc(false, ResUI.MsgDownloadV2rayCoreSuccessfully);
-                _ = UpdateFunc(true, Utils.UrlEncode(fileName));
-            }
-            else
-            {
-                _ = UpdateFunc(false, args.Msg);
-            }
-        };
-        downloadHandle.Error += (sender2, args) =>
-        {
-            _ = UpdateFunc(false, args.GetException().Message);
-        };
-
-        await UpdateFunc(false, string.Format(ResUI.MsgStartUpdating, ECoreType.v2rayN));
-        var result = await CheckUpdateAsync(downloadHandle, ECoreType.v2rayN, preRelease);
-        if (result.Success)
-        {
-            await UpdateFunc(false, string.Format(ResUI.MsgParsingSuccessfully, ECoreType.v2rayN));
-            await UpdateFunc(false, result.Msg);
-
-            url = result.Url.ToString();
-            fileName = Utils.GetTempPath(Utils.GetGuid());
-            await downloadHandle.DownloadFileAsync(url, fileName, true, _timeout);
-        }
-        else
-        {
-            await UpdateFunc(false, result.Msg);
-        }
-    }
-
-    public async Task CheckUpdateCore(ECoreType type, bool preRelease)
-    {
+        var type = ECoreType.sing_box;
         var url = string.Empty;
         var fileName = string.Empty;
 
@@ -59,15 +20,8 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
             {
                 _ = UpdateFunc(false, ResUI.MsgDownloadV2rayCoreSuccessfully);
                 _ = UpdateFunc(false, ResUI.MsgUnpacking);
-
-                try
-                {
-                    _ = UpdateFunc(true, fileName);
-                }
-                catch (Exception ex)
-                {
-                    _ = UpdateFunc(false, ex.Message);
-                }
+                try { _ = UpdateFunc(true, fileName); }
+                catch (Exception ex) { _ = UpdateFunc(false, ex.Message); }
             }
             else
             {
@@ -80,7 +34,7 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
         };
 
         await UpdateFunc(false, string.Format(ResUI.MsgStartUpdating, type));
-        var result = await CheckUpdateAsync(downloadHandle, type, preRelease);
+        var result = await CheckUpdateAsync(downloadHandle, preRelease);
         if (result.Success)
         {
             await UpdateFunc(false, string.Format(ResUI.MsgParsingSuccessfully, type));
@@ -110,16 +64,16 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
 
     #region CheckUpdate private
 
-    private async Task<UpdateResult> CheckUpdateAsync(DownloadService downloadHandle, ECoreType type, bool preRelease)
+    private async Task<UpdateResult> CheckUpdateAsync(DownloadService downloadHandle, bool preRelease)
     {
         try
         {
-            var result = await GetRemoteVersion(downloadHandle, type, preRelease);
+            var result = await GetRemoteVersion(downloadHandle, preRelease);
             if (!result.Success || result.Version is null)
             {
                 return result;
             }
-            return await ParseDownloadUrl(type, result);
+            return await ParseDownloadUrl(result);
         }
         catch (Exception ex)
         {
@@ -129,80 +83,46 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
         }
     }
 
-    private async Task<UpdateResult> GetRemoteVersion(DownloadService downloadHandle, ECoreType type, bool preRelease)
+    private async Task<UpdateResult> GetRemoteVersion(DownloadService downloadHandle, bool preRelease)
     {
-        var coreInfo = CoreInfoManager.Instance.GetCoreInfo(type);
+        var coreInfo = CoreInfoManager.Instance.GetCoreInfo(ECoreType.sing_box);
         var tagName = string.Empty;
         if (preRelease)
         {
             var url = coreInfo?.ReleaseApiUrl;
             var result = await downloadHandle.TryDownloadString(url, true, Global.AppName);
-            if (result.IsNullOrEmpty())
-            {
-                return new UpdateResult(false, "");
-            }
-
+            if (result.IsNullOrEmpty()) return new UpdateResult(false, "");
             var gitHubReleases = JsonUtils.Deserialize<List<GitHubRelease>>(result);
             var gitHubRelease = preRelease ? gitHubReleases?.First() : gitHubReleases?.First(r => r.Prerelease == false);
             tagName = gitHubRelease?.TagName;
-            //var body = gitHubRelease?.Body;
         }
         else
         {
             var url = Path.Combine(coreInfo.Url, "latest");
             var lastUrl = await downloadHandle.UrlRedirectAsync(url, true);
-            if (lastUrl == null)
-            {
-                return new UpdateResult(false, "");
-            }
-
+            if (lastUrl == null) return new UpdateResult(false, "");
             tagName = lastUrl?.Split("/tag/").LastOrDefault();
         }
         return new UpdateResult(true, new SemanticVersion(tagName));
     }
 
-    private async Task<SemanticVersion> GetCoreVersion(ECoreType type)
+    private async Task<SemanticVersion> GetCoreVersion()
     {
         try
         {
-            var coreInfo = CoreInfoManager.Instance.GetCoreInfo(type);
+            var coreInfo = CoreInfoManager.Instance.GetCoreInfo(ECoreType.sing_box);
             var filePath = string.Empty;
             foreach (var name in coreInfo.CoreExes)
             {
                 var vName = Utils.GetBinPath(Utils.GetExeName(name), coreInfo.CoreType.ToString());
-                if (File.Exists(vName))
-                {
-                    filePath = vName;
-                    break;
-                }
+                if (File.Exists(vName)) { filePath = vName; break; }
             }
 
             if (!File.Exists(filePath))
-            {
-                var msg = string.Format(ResUI.NotFoundCore, @"", "", "");
-                //ShowMsg(true, msg);
                 return new SemanticVersion("");
-            }
 
             var result = await Utils.GetCliWrapOutput(filePath, coreInfo.VersionArg);
-            var echo = result ?? "";
-            var version = string.Empty;
-            switch (type)
-            {
-                case ECoreType.v2fly:
-                case ECoreType.Xray:
-                case ECoreType.v2fly_v5:
-                    version = Regex.Match(echo, $"{coreInfo.Match} ([0-9.]+) \\(").Groups[1].Value;
-                    break;
-
-                case ECoreType.mihomo:
-                    version = Regex.Match(echo, $"v[0-9.]+").Groups[0].Value;
-                    break;
-
-                case ECoreType.sing_box:
-                    version = Regex.Match(echo, $"([0-9.]+)").Groups[1].Value;
-                    break;
-            }
+            var version = Regex.Match(result ?? "", $"([0-9.]+)").Groups[1].Value;
             return new SemanticVersion(version);
         }
         catch (Exception ex)
@@ -213,56 +133,19 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
         }
     }
 
-    private async Task<UpdateResult> ParseDownloadUrl(ECoreType type, UpdateResult result)
+    private async Task<UpdateResult> ParseDownloadUrl(UpdateResult result)
     {
         try
         {
             var version = result.Version ?? new SemanticVersion(0, 0, 0);
-            var coreInfo = CoreInfoManager.Instance.GetCoreInfo(type);
+            var coreInfo = CoreInfoManager.Instance.GetCoreInfo(ECoreType.sing_box);
             var coreUrl = await GetUrlFromCore(coreInfo) ?? string.Empty;
-            SemanticVersion curVersion;
-            string message;
-            string? url;
-            switch (type)
-            {
-                case ECoreType.v2fly:
-                case ECoreType.Xray:
-                case ECoreType.v2fly_v5:
-                    {
-                        curVersion = await GetCoreVersion(type);
-                        message = string.Format(ResUI.IsLatestCore, type, curVersion.ToVersionString("v"));
-                        url = string.Format(coreUrl, version.ToVersionString("v"));
-                        break;
-                    }
-                case ECoreType.mihomo:
-                    {
-                        curVersion = await GetCoreVersion(type);
-                        message = string.Format(ResUI.IsLatestCore, type, curVersion);
-                        url = string.Format(coreUrl, version.ToVersionString("v"));
-                        break;
-                    }
-                case ECoreType.sing_box:
-                    {
-                        curVersion = await GetCoreVersion(type);
-                        message = string.Format(ResUI.IsLatestCore, type, curVersion.ToVersionString("v"));
-                        url = string.Format(coreUrl, version.ToVersionString("v"), version);
-                        break;
-                    }
-                case ECoreType.v2rayN:
-                    {
-                        curVersion = new SemanticVersion(Utils.GetVersionInfo());
-                        message = string.Format(ResUI.IsLatestN, type, curVersion);
-                        url = string.Format(coreUrl, version);
-                        break;
-                    }
-                default:
-                    throw new ArgumentException("Type");
-            }
+            var curVersion = await GetCoreVersion();
+            var message = string.Format(ResUI.IsLatestCore, ECoreType.sing_box, curVersion.ToVersionString("v"));
+            var url = string.Format(coreUrl, version.ToVersionString("v"), version);
 
             if (curVersion >= version && version != new SemanticVersion(0, 0, 0))
-            {
                 return new UpdateResult(false, message);
-            }
 
             result.Url = url;
             return result;
@@ -279,48 +162,19 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
     {
         if (Utils.IsWindows())
         {
-            var url = RuntimeInformation.ProcessArchitecture switch
+            return RuntimeInformation.ProcessArchitecture switch
             {
                 Architecture.Arm64 => coreInfo?.DownloadUrlWinArm64,
                 Architecture.X64 => coreInfo?.DownloadUrlWin64,
                 _ => null,
             };
-
-            if (coreInfo?.CoreType != ECoreType.v2rayN)
-            {
-                return url;
-            }
-
-            //Check for avalonia desktop windows version
-            if (File.Exists(Path.Combine(Utils.GetBaseDirectory(), "libHarfBuzzSharp.dll")))
-            {
-                return url?.Replace(".zip", "-desktop.zip");
-            }
-
-            return url;
         }
-
         else if (Utils.IsLinux())
-        {
-            var arch = RuntimeInformation.ProcessArchitecture;
-            if (arch.ToString().Equals("RiscV64", StringComparison.OrdinalIgnoreCase))
-            {
-                return coreInfo?.DownloadUrlLinuxRiscV64;
-            }
-            return arch switch
-            {
-                Architecture.Arm64 => coreInfo?.DownloadUrlLinuxArm64,
-                Architecture.X64 => coreInfo?.DownloadUrlLinux64,
-                _ => null,
-            };
-        }
-        
-        else if (Utils.IsMacOS())
         {
             return RuntimeInformation.ProcessArchitecture switch
             {
-                Architecture.Arm64 => coreInfo?.DownloadUrlOSXArm64,
-                Architecture.X64 => coreInfo?.DownloadUrlOSX64,
+                Architecture.Arm64 => coreInfo?.DownloadUrlLinuxArm64,
+                Architecture.X64 => coreInfo?.DownloadUrlLinux64,
                 _ => null,
             };
         }
@@ -343,24 +197,18 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
             var fileName = $"{geoName}.dat";
             var targetPath = Utils.GetBinPath($"{fileName}");
             var url = string.Format(geoUrl, geoName);
-
             await DownloadGeoFile(url, fileName, targetPath);
         }
     }
 
     private async Task UpdateOtherFiles()
     {
-        //If it is not in China area, no update is required
-        if (_config.ConstItem.GeoSourceUrl.IsNotEmpty())
-        {
-            return;
-        }
+        if (_config.ConstItem.GeoSourceUrl.IsNotEmpty()) return;
 
         foreach (var url in Global.OtherGeoUrls)
         {
             var fileName = Path.GetFileName(url);
             var targetPath = Utils.GetBinPath($"{fileName}");
-
             await DownloadGeoFile(url, fileName, targetPath);
         }
     }
@@ -370,7 +218,6 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
         var geoipFiles = new List<string>();
         var geoSiteFiles = new List<string>();
 
-        // Collect from routing rules
         var routingItems = await AppManager.Instance.RoutingItems();
         foreach (var routing in routingItems)
         {
@@ -382,7 +229,6 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
             }
         }
 
-        // Collect from DNS configuration
         var dnsItem = await AppManager.Instance.GetDNSItem(ECoreType.sing_box);
         if (dnsItem != null)
         {
@@ -390,94 +236,60 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
             ExtractDnsRuleSets(dnsItem.TunDNS, geoipFiles, geoSiteFiles);
         }
 
-        // Append default items
         geoSiteFiles.AddRange(["google", "cn", "geolocation-cn", "category-ads-all"]);
 
-        // Download files
         var path = Utils.GetBinPath("srss");
-        if (!Directory.Exists(path))
-        {
-            Directory.CreateDirectory(path);
-        }
+        if (!Directory.Exists(path)) Directory.CreateDirectory(path);
 
         foreach (var item in geoipFiles.Distinct())
-        {
             await UpdateSrsFile("geoip", item);
-        }
 
         foreach (var item in geoSiteFiles.Distinct())
-        {
             await UpdateSrsFile("geosite", item);
-        }
     }
 
     private void AddPrefixedItems(List<string>? items, string prefix, List<string> output)
     {
-        if (items == null)
-        {
-            return;
-        }
-
+        if (items == null) return;
         foreach (var item in items)
         {
             if (item.StartsWith(prefix))
-            {
                 output.Add(item.Substring(prefix.Length));
-            }
         }
     }
 
     private void ExtractDnsRuleSets(string? dnsJson, List<string> geoipFiles, List<string> geoSiteFiles)
     {
-        if (string.IsNullOrEmpty(dnsJson))
-        {
-            return;
-        }
-
+        if (string.IsNullOrEmpty(dnsJson)) return;
         try
         {
             var dns = JsonUtils.Deserialize<Dns4Sbox>(dnsJson);
             if (dns?.rules != null)
-            {
                 foreach (var rule in dns.rules)
-                {
                     ExtractSrsRuleSets(rule, geoipFiles, geoSiteFiles);
-                }
-            }
         }
         catch { }
     }
 
     private void ExtractSrsRuleSets(Rule4Sbox? rule, List<string> geoipFiles, List<string> geoSiteFiles)
     {
-        if (rule == null)
-        {
-            return;
-        }
-
+        if (rule == null) return;
         AddPrefixedItems(rule.rule_set, "geosite-", geoSiteFiles);
         AddPrefixedItems(rule.rule_set, "geoip-", geoipFiles);
-
-        // Handle nested rules recursively
         if (rule.rules != null)
-        {
             foreach (var nestedRule in rule.rules)
-            {
                 ExtractSrsRuleSets(nestedRule, geoipFiles, geoSiteFiles);
-            }
-        }
     }
 
     private async Task UpdateSrsFile(string type, string srsName)
     {
         var srsUrl = string.IsNullOrEmpty(_config.ConstItem.SrsSourceUrl)
-                        ? Global.SingboxRulesetUrl
-                        : _config.ConstItem.SrsSourceUrl;
+            ? Global.SingboxRulesetUrl
+            : _config.ConstItem.SrsSourceUrl;
 
         var fileName = $"{type}-{srsName}.srs";
         var targetPath = Path.Combine(Utils.GetBinPath("srss"), fileName);
         var url = string.Format(srsUrl, type, $"{type}-{srsName}", srsName);
-
         await DownloadGeoFile(url, fileName, targetPath);
     }
 
@@ -491,26 +303,17 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
             if (args.Success)
             {
                 _ = UpdateFunc(false, string.Format(ResUI.MsgDownloadGeoFileSuccessfully, fileName));
-
                 try
                 {
                     if (File.Exists(tmpFileName))
                     {
                         File.Copy(tmpFileName, targetPath, true);
-
                         File.Delete(tmpFileName);
-                        //await    UpdateFunc(true, "");
                     }
                 }
-                catch (Exception ex)
-                {
-                    _ = UpdateFunc(false, ex.Message);
-                }
+                catch (Exception ex) { _ = UpdateFunc(false, ex.Message); }
             }
-            else
-            {
-                _ = UpdateFunc(false, args.Msg);
-            }
+            else { _ = UpdateFunc(false, args.Msg); }
         };
         downloadHandle.Error += (sender2, args) =>
         {

@@ -85,7 +85,7 @@ public class Hysteria2Fmt : BaseFmt
 
             var profileItem = new ProfileItem
             {
-                CoreType = ECoreType.hysteria2,
+                CoreType = ECoreType.sing_box,
                 Address = fileName,
                 Remarks = subRemarks ?? "hysteria2_custom"
             };

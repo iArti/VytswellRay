@@ -326,11 +326,12 @@ Set `<Content Include="Resources\rule_sets\*.srs"><CopyToOutputDirectory>Preserv
    - Centered `StackPanel` with a large `ui:Button` (primary) + status label.
    - Bottom `Grid` with two equal columns holding `Connections` and `Settings` buttons.
    - `tray:NotifyIcon` (from `WPF-UI.Tray`) with menu items bound to commands.
-5. `MainWindowViewModel` surface (target ~150 lines):
+5. `MainWindowViewModel` surface (target ~200 lines):
    ```csharp
    ConnectionState State { get; }             // Disconnected | Connecting | Connected | Error
    string? ActiveProfileName { get; }
    string? LastError { get; }
+   string? PingDisplay { get; }               // "60 мс" | "тайм-аут" | null
    ReactiveCommand ToggleConnectCommand { get; }
    ReactiveCommand ShowConnectionsCommand { get; }
    ReactiveCommand ShowSettingsCommand { get; }
@@ -339,15 +340,38 @@ Set `<Content Include="Resources\rule_sets\*.srs"><CopyToOutputDirectory>Preserv
    - `ToggleConnectCommand` reads active profile → calls `CoreManager.StartCoreAsync(profile)` (via `FixedPolicy`) or `CoreManager.CoreStopAsync()`.
    - State transitions emit to `State` for the View to rebind.
 
+   **Periodic ping (TCP connect, every 5 min while connected):**
+   - On `State → Connected`: start a background loop with `CancellationToken`.
+     - Wait 3 s (let sing-box fully start), then ping immediately, then repeat every 5 min.
+   - On `State → Disconnected/Error`: cancel the loop, set `PingDisplay = null`.
+   - Ping implementation — TCP connect to `profile.Address:profile.Port`:
+     ```csharp
+     var sw = Stopwatch.StartNew();
+     using var tcp = new TcpClient();
+     await tcp.ConnectAsync(host, port).WaitAsync(TimeSpan.FromSeconds(5), ct);
+     sw.Stop();
+     return (int)sw.ElapsedMilliseconds; // null on any exception = тайм-аут
+     ```
+   - Status line binding (single string, computed):
+     - Disconnected → `"Статус: Не подключено"`
+     - Connecting → `"Статус: Подключение..."`
+     - Connected, no ping yet → `"Статус: Подключено"`
+     - Connected, ping done → `"Статус: Подключено, Пинг: 60 мс"` or `"..., Пинг: тайм-аут"`
+     - Error → `"Статус: Ошибка — {LastError}"`
+   - TCP connect to the proxy port is the right signal: if it times out the server is unreachable, regardless of whether ICMP is blocked.
+
 6. Create `Views/ConnectionsDialog.xaml` — `ui:ContentDialog` hosting:
    - `ListView` of profiles (columns: name, protocol, address, Delete button, Set-active radio).
-   - `TextBox` + "Add" button: calls `FmtHandler.ParseClipboardOrUrl(text)` → `ConfigHandler.AddServerCommon(item)`.
-   - Validation: show `ui:InfoBar` error if parse fails.
+   - Two add buttons side by side:
+     - **"Вставить URL"** — reads `Clipboard.GetText()`, passes to `FmtHandler` parser.
+     - **"Сканировать QR"** — captures all screens via `Graphics.CopyFromScreen`, feeds each bitmap to `ZXing.Net` (`BarcodeReaderGeneric` with `BitmapLuminanceSource`), extracts URL string if QR found. Same parse path as paste.
+   - Validation: `ui:InfoBar` error if parse fails or no QR found on screen.
 7. Create `Views/SettingsDialog.xaml` — `ui:ContentDialog` with:
    - `ui:ToggleSwitch` "Запускать с Windows" (bind to `AutoStartupHandler.Set/Get`).
    - `ui:ToggleSwitch` "Автоподключение при запуске" — when on, `MainWindowViewModel` calls `ToggleConnectCommand` after init if an active profile exists.
    - `ComboBox` Тема: Система / Светлая / Тёмная (calls `ApplicationThemeManager.Apply(...)`).
    - **Hotkey row:** `ui:ToggleSwitch` "Использовать горячую клавишу" + capture box (TBD default — picked later by user). Disabled state grays out the capture box. Uses `HotkeyManager.cs` (kept from original); persists to config.
+   - **Hidden BitTorrent setting (easter egg):** Version label is a clickable `TextBlock`. Track click count; after **7 clicks within 3 seconds**, play a subtle animation and reveal a previously-collapsed `StackPanel` containing a single `ui:ToggleSwitch` "Направлять торрент через прокси" (default off, meaning bittorrent goes direct). Clicking it flips `config.GuiItem.RouteBittorrentDirect` (true = direct, false = through proxy). Show a `ui:InfoBar` "Расширенные настройки разблокированы" when the section first appears. Once revealed in a session, stays visible; persists across sessions if the user changed the value (always show if `RouteBittorrentDirect != true` i.e. non-default). The toggle is never mentioned in any UI label, tooltip, or documentation.
    - **"Обновлено: N дней назад"** label + `ui:Button` "Обновить списки сейчас" (forces sing-box rule-set refresh by stop+start of core).
    - **`ui:Button` "Экспортировать логи"** — opens save-file dialog, zips `%LOCALAPPDATA%/VytswellRay/logs/*` + last sing-box log into `vytswellray-logs-yyyymmdd-hhmmss.zip`. No telemetry, no auto-send.
    - Static version label from assembly.

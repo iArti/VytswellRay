@@ -242,10 +242,7 @@ public partial class CoreConfigSingboxService
 
         foreach (var coreConfig in coreInfoResult)
         {
-            if (coreConfig.CoreType == ECoreType.v2rayN)
-            {
-                continue;
-            }
+
 
             foreach (var baseExeName in coreConfig.CoreExes)
             {
