@@ -1,18 +1,29 @@
-# v2rayN
+# VytswellRay
 
-A GUI client for Windows, Linux and macOS, support [Xray](https://github.com/XTLS/Xray-core)
-and [sing-box](https://github.com/SagerNet/sing-box)
-and [others](https://github.com/2dust/v2rayN/wiki/List-of-supported-cores)
+Internal workplace proxy client. Fork of [v2RayN](https://github.com/2dust/v2rayN), simplified to a single-purpose tool.
 
-[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/2dust/v2rayN)](https://github.com/2dust/v2rayN/commits/master)
-[![CodeFactor](https://www.codefactor.io/repository/github/2dust/v2rayn/badge)](https://www.codefactor.io/repository/github/2dust/v2rayn)
-[![GitHub Releases](https://img.shields.io/github/downloads/2dust/v2rayN/latest/total?logo=github)](https://github.com/2dust/v2rayN/releases)
-[![Chat on Telegram](https://img.shields.io/badge/Chat%20on-Telegram-brightgreen.svg)](https://t.me/v2rayn)
+## Requirements
 
-## How to use
+- Windows 10 x64 / arm64
+- Administrator rights (required for TUN mode)
+- sing-box + wintun.dll in `Resources/bin/sing-box/`
 
-Read the [Wiki](https://github.com/2dust/v2rayN/wiki) for details.
+## Build
 
-## Telegram Channel
+```
+cd v2rayN
+dotnet publish v2rayN/v2rayN.csproj -c Release -r win-x64 -p:SelfContained=true -p:EnableWindowsTargeting=true -o ../out/x64
+```
 
-[github_2dust](https://t.me/github_2dust)
+## Distribution
+
+Extract the publish output folder and run `v2rayN.exe` as Administrator.
+
+## Branch
+
+Active development: `simplify-workplace-fork`
+Base: `master` (upstream v2RayN 7.21.0)
+
+## Plan
+
+See [SIMPLIFICATION_PLAN.md](SIMPLIFICATION_PLAN.md) for full implementation plan.

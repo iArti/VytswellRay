@@ -3,13 +3,10 @@ name: build
 on:
   workflow_call:
     inputs:
-      target: # windows linux macos
-        required: true
-        type: string
       project:
         required: false
         type: string
-        default: './v2rayN.Desktop/v2rayN.Desktop.csproj'
+        default: './v2rayN/v2rayN.csproj'
 
 jobs:
   build:
@@ -17,32 +14,11 @@ jobs:
     strategy:
       matrix:
         arch: [ x64, arm64 ]
-    runs-on: |-
-      ${{
-        case(
-          inputs.target == 'macos', 'macos-latest',
-          inputs.target == 'linux', 'ubuntu-24.04',
-          'ubuntu-latest'
-        )
-      }}
+    runs-on: windows-latest
     env:
       Output: "${{ github.workspace }}/${{ matrix.arch }}"
-      RID: |-
-        ${{
-          case(
-            inputs.target == 'macos', format('osx-{0}', matrix.arch),
-            inputs.target == 'windows', format('win-{0}', matrix.arch),
-            format('{0}-{1}', inputs.target, matrix.arch)
-          )
-        }}
+      RID: "win-${{ matrix.arch }}"
       Project: ${{ inputs.project }}
-      ExtOpt: |-
-        ${{
-          case(
-            inputs.target == 'windows', '-p:EnableWindowsTargeting=true',
-            ''
-          )
-        }}
 
     steps:
     - name: Checkout
@@ -56,13 +32,9 @@ jobs:
       with:
         dotnet-version: '8.0.x'
 
-    - name: Build v2rayN
+    - name: Build
       working-directory: ./v2rayN
-      run: dotnet publish $Project -c Release -r $RID -p:SelfContained=true $ExtOpt -o $Output
-
-    - name: Build AmazTool
-      working-directory: ./v2rayN
-      run: dotnet publish ./AmazTool/AmazTool.csproj -c Release -r $RID -p:SelfContained=true -p:PublishTrimmed=true $ExtOpt -o $Output
+      run: dotnet publish ${{ env.Project }} -c Release -r ${{ env.RID }} -p:SelfContained=true -p:EnableWindowsTargeting=true -o ${{ env.Output }}
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v7.0.1

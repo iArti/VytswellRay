@@ -396,7 +396,8 @@ Set `<Content Include="Resources\rule_sets\*.srs"><CopyToOutputDirectory>Preserv
 ### Phase 9 — Polish (1–2 h, optional)
 - App icon + tray icon (replace `v2rayN.ico` with your workplace asset).
 - Version bump in `Directory.Build.props`: change `Version` to `1.0.0-vyts` and `AssemblyName`/`RootNamespace` if you want a distinct binary name.
-- Installer: WiX or Velopack — out of scope for v1; ship a zip + `run-as-admin.cmd` internally.
+- **Distribution v1:** zip archive of the publish output (x64 + arm64 folders). Users extract and run directly — no installer needed internally for now.
+- **Distribution v2 (Phase 9 future):** Inno Setup — single `.exe` installer, handles file extraction, shortcuts, optional "Start with Windows" checkbox, admin elevation. ~60-line `.iss` script, zero code changes to the app.
 
 ---
 

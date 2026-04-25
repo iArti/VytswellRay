@@ -6,7 +6,8 @@
       "WebFetch(domain:github.com)",
       "WebSearch",
       "WebFetch(domain:www.nuget.org)",
-      "WebFetch(domain:wpfui.lepo.co)"
+      "WebFetch(domain:wpfui.lepo.co)",
+      "Bash(git checkout *)"
     ]
   }
 }
