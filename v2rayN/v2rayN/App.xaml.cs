@@ -1,30 +1,30 @@
 namespace v2rayN;
 
-/// <summary>
-/// Interaction logic for App.xaml
-/// </summary>
 public partial class App : Application
 {
-    public static EventWaitHandle ProgramStarted;
+    public static EventWaitHandle ProgramStarted = null!;
+
+    /// <summary>
+    /// True when sing-box.exe is not found. All core operations are simulated so
+    /// the UI can be tested without the real binary present.
+    /// </summary>
+    public static bool UITestMode { get; private set; }
 
     public App()
     {
-        DispatcherUnhandledException += App_DispatcherUnhandledException;
-        AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
-        TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
+        DispatcherUnhandledException += (_, e) => { Logging.SaveLog("App_DispatcherUnhandledException", e.Exception); e.Handled = true; };
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            if (e.ExceptionObject is Exception ex) Logging.SaveLog("CurrentDomain_UnhandledException", ex);
+        };
+        TaskScheduler.UnobservedTaskException += (_, e) => Logging.SaveLog("TaskScheduler_UnobservedTaskException", e.Exception);
     }
 
-    /// <summary>
-    /// Open only one process
-    /// </summary>
-    /// <param name="e"></param>
     protected override void OnStartup(StartupEventArgs e)
     {
         var exePathKey = Utils.GetMd5(Utils.GetExePath());
-
-        var rebootas = (e.Args ?? Array.Empty<string>()).Any(t => t == Global.RebootAs);
         ProgramStarted = new EventWaitHandle(false, EventResetMode.AutoReset, exePathKey, out var bCreatedNew);
-        if (!rebootas && !bCreatedNew)
+        if (!bCreatedNew)
         {
             ProgramStarted.Set();
             Environment.Exit(0);
@@ -33,42 +33,68 @@ public partial class App : Application
 
         if (!AppManager.Instance.InitApp())
         {
-            UI.Show($"Loading GUI configuration file is abnormal,please restart the application{Environment.NewLine}加载GUI配置文件异常,请重启应用");
+            UI.Show("Loading config failed");
             Environment.Exit(0);
             return;
         }
 
         AppManager.Instance.InitComponents();
 
+        // RU is the default. Honor any saved choice in config.UiItem.CurrentLanguage.
+        var saved = AppManager.Instance.Config.UiItem.CurrentLanguage;
+        LocalizedStrings.Instance.SetLanguage(saved == null || saved.StartsWith("ru", StringComparison.OrdinalIgnoreCase));
+
+        // Detect sing-box binary — activate UI test mode when absent
+        var singboxExe = Utils.GetBinPath(Utils.GetExeName("sing-box"), ECoreType.sing_box.ToString());
+        UITestMode = !File.Exists(singboxExe);
+        if (UITestMode) Logging.SaveLog("sing-box not found — UI test mode active");
+
+        // Seed a demo profile on first launch so the Connect button is usable immediately
+        _ = SeedDemoProfileAsync();
+
+        // Initialize core process management
+        _ = CoreManager.Instance.Init(AppManager.Instance.Config, async (_, msg) =>
+        {
+            await Task.Yield();
+            if (!string.IsNullOrEmpty(msg)) Logging.SaveLog($"core: {msg}");
+        });
+
         RxAppBuilder.CreateReactiveUIBuilder()
             .WithWpf()
             .BuildApp();
 
+        var window = new Views.MainWindow();
+        MainWindow = window;
+        window.Show();
+
         base.OnStartup(e);
     }
 
-    private void App_DispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+    private static async Task SeedDemoProfileAsync()
     {
-        Logging.SaveLog("App_DispatcherUnhandledException", e.Exception);
-        e.Handled = true;
-    }
-
-    private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
-    {
-        if (e.ExceptionObject != null)
+        try
         {
-            Logging.SaveLog("CurrentDomain_UnhandledException", (Exception)e.ExceptionObject);
-        }
-    }
+            var existing = await AppManager.Instance.ProfileItems(string.Empty);
+            if (existing?.Count > 0) return;
 
-    private void TaskScheduler_UnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
-    {
-        Logging.SaveLog("TaskScheduler_UnobservedTaskException", e.Exception);
+            const string demoUrl =
+                "vless://00000000-0000-0000-0000-000000000000@demo.example.com:443" +
+                "?type=tcp&security=tls&sni=demo.example.com#Demo+Connection";
+
+            var profile = FmtHandler.ResolveConfig(demoUrl, out _);
+            if (profile == null) return;
+
+            var config = AppManager.Instance.Config;
+            await ConfigHandler.AddServer(config, profile);
+            await ConfigHandler.SetDefaultServerIndex(config, profile.IndexId);
+        }
+        catch { /* best-effort */ }
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
         Logging.SaveLog("OnExit");
+        try { CoreManager.Instance.CoreStop().Wait(2000); } catch { }
         base.OnExit(e);
         Process.GetCurrentProcess().Kill();
     }

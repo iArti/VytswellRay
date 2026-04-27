@@ -62,7 +62,7 @@ public class QRCodeWindowsUtils
         return new ImageSourceConverter().ConvertFrom(imageData) as BitmapSource;
     }
 
-    private static byte[]? ImageToByte(Image img)
+    private static byte[]? ImageToByte(System.Drawing.Image img)
     {
         return new ImageConverter().ConvertTo(img, typeof(byte[])) as byte[];
     }

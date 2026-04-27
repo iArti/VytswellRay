@@ -75,12 +75,12 @@ public sealed partial class HotkeyManager
             {
                 if (isSuccess)
                 {
-                    msg = string.Format(ResUI.RegisterGlobalHotkeySuccessfully, $"{name}({hotkeyInfo.hotkeyStr})");
+                    msg = $"Hotkey registered: {name}({hotkeyInfo.hotkeyStr})";
                 }
                 else
                 {
                     var errInfo = new Win32Exception(Marshal.GetLastWin32Error()).Message;
-                    msg = string.Format(ResUI.RegisterGlobalHotkeyFailed, $"{name}({hotkeyInfo.hotkeyStr})", errInfo);
+                    msg = $"{LocalizedStrings.Instance.HotkeyConflict}: {name}({hotkeyInfo.hotkeyStr}) — {errInfo}";
                 }
                 UpdateViewEvent?.Invoke(false, msg);
             }

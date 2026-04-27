@@ -1,0 +1,156 @@
+<ui:ContentDialog
+    x:Class="v2rayN.Views.ConnectionsDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:loc="clr-namespace:v2rayN.Common"
+    xmlns:vm="clr-namespace:v2rayN.ViewModels"
+    xmlns:conv="clr-namespace:v2rayN.Converters"
+    DialogMaxWidth="640"
+    DialogHeight="540">
+    <ui:ContentDialog.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis" />
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisInv" Inverted="True" />
+    </ui:ContentDialog.Resources>
+
+    <Grid Margin="0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock
+            Grid.Row="0"
+            Margin="0,0,0,16"
+            FontSize="20"
+            FontWeight="SemiBold"
+            Text="{Binding Source={x:Static loc:LocalizedStrings.Instance}, Path=Connections}" />
+
+        <!-- List of connections -->
+        <Border
+            Grid.Row="1"
+            Padding="0"
+            Background="{DynamicResource ControlFillColorDefaultBrush}"
+            CornerRadius="8">
+            <Grid>
+                <ListView
+                    Background="Transparent"
+                    BorderThickness="0"
+                    ItemsSource="{Binding Rows}"
+                    Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisInv}}">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,8" >
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <RadioButton
+                                    Grid.Column="0"
+                                    Margin="0,0,12,0"
+                                    VerticalAlignment="Center"
+                                    GroupName="active"
+                                    IsChecked="{Binding IsActive, Mode=OneWay}"
+                                    Command="{Binding DataContext.SetActiveCommand, RelativeSource={RelativeSource AncestorType=ui:ContentDialog}}"
+                                    CommandParameter="{Binding}" />
+
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock FontWeight="SemiBold" Text="{Binding Remarks}" />
+                                    <TextBlock
+                                        FontSize="12"
+                                        Opacity="0.6"
+                                        Text="{Binding Address}" />
+                                </StackPanel>
+
+                                <Border
+                                    Grid.Column="2"
+                                    Margin="8,0"
+                                    Padding="8,2"
+                                    VerticalAlignment="Center"
+                                    Background="{DynamicResource AccentFillColorTertiaryBrush}"
+                                    CornerRadius="4">
+                                    <TextBlock
+                                        FontSize="11"
+                                        FontWeight="SemiBold"
+                                        Text="{Binding Protocol}" />
+                                </Border>
+
+                                <ui:Button
+                                    Grid.Column="3"
+                                    Width="36"
+                                    Height="36"
+                                    Padding="0"
+                                    Appearance="Transparent"
+                                    Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=ui:ContentDialog}}"
+                                    CommandParameter="{Binding}">
+                                    <ui:SymbolIcon Symbol="Delete24" />
+                                </ui:Button>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+                <!-- Empty state -->
+                <TextBlock
+                    Margin="24"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Opacity="0.6"
+                    TextAlignment="Center"
+                    TextWrapping="Wrap"
+                    Text="{Binding Source={x:Static loc:LocalizedStrings.Instance}, Path=NoConnections}"
+                    Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVis}}" />
+            </Grid>
+        </Border>
+
+        <!-- Add row -->
+        <StackPanel Grid.Row="2" Margin="0,16,0,0">
+            <ui:InfoBar
+                Margin="0,0,0,12"
+                IsClosable="False"
+                IsOpen="{Binding InfoMessage, Converter={StaticResource BoolToVis}}"
+                Message="{Binding InfoMessage}"
+                Severity="Informational" />
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <ui:Button
+                    Grid.Column="0"
+                    Margin="0,0,6,0"
+                    Padding="0,12"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    Appearance="Secondary"
+                    Command="{Binding PasteFromClipboardCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:SymbolIcon Margin="0,0,8,0" Symbol="ClipboardPaste24" />
+                        <TextBlock Text="{Binding Source={x:Static loc:LocalizedStrings.Instance}, Path=PasteFromClipboard}" />
+                    </StackPanel>
+                </ui:Button>
+
+                <ui:Button
+                    Grid.Column="1"
+                    Margin="6,0,0,0"
+                    Padding="0,12"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    Appearance="Secondary"
+                    Click="OnScanQrClick">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:SymbolIcon Margin="0,0,8,0" Symbol="QrCode24" />
+                        <TextBlock Text="{Binding Source={x:Static loc:LocalizedStrings.Instance}, Path=ScanQrFromScreen}" />
+                    </StackPanel>
+                </ui:Button>
+            </Grid>
+        </StackPanel>
+    </Grid>
+</ui:ContentDialog>

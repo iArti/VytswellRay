@@ -1,15 +1,167 @@
-<Window
+<ui:FluentWindow
     x:Class="v2rayN.Views.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:tray="clr-namespace:Wpf.Ui.Tray.Controls;assembly=Wpf.Ui.Tray"
+    xmlns:loc="clr-namespace:v2rayN.Common"
+    xmlns:conv="clr-namespace:v2rayN.Converters"
     Title="VytswellRay"
-    Width="400"
-    Height="300"
+    Width="440"
+    Height="500"
+    MinWidth="380"
+    MinHeight="440"
+    ExtendsContentIntoTitleBar="True"
+    WindowBackdropType="Mica"
+    WindowCornerPreference="Round"
     WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <conv:StateToColorConverter x:Key="StateToColor" />
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
+
     <Grid>
-        <TextBlock
-            HorizontalAlignment="Center"
-            VerticalAlignment="Center"
-            Text="VytswellRay — Phase 5 UI coming" />
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Title bar with globe (language toggle) -->
+        <ui:TitleBar
+            Grid.Row="0"
+            Title="VytswellRay"
+            ShowMaximize="False">
+            <ui:TitleBar.Header>
+                <StackPanel Orientation="Horizontal">
+                    <ui:Button
+                        Width="46"
+                        Height="32"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        Appearance="Transparent"
+                        Command="{Binding ToggleLanguageCommand}"
+                        ToolTip="RU / EN">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon FontSize="14" Symbol="Globe24" />
+                            <TextBlock
+                                Margin="4,0,0,0"
+                                VerticalAlignment="Center"
+                                FontSize="11"
+                                FontWeight="SemiBold"
+                                Text="{Binding Source={x:Static loc:LocalizedStrings.Instance}, Path=LanguageCode}" />
+                        </StackPanel>
+                    </ui:Button>
+                </StackPanel>
+            </ui:TitleBar.Header>
+
+        </ui:TitleBar>
+
+        <!-- Main content: centered Connect button + status -->
+        <Grid Grid.Row="1" Margin="0">
+            <StackPanel
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center">
+
+                <!-- Big primary connect button -->
+                <ui:Button
+                    Width="220"
+                    Height="68"
+                    Margin="0,0,0,28"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Appearance="Primary"
+                    Command="{Binding ToggleConnectCommand}"
+                    CornerRadius="34"
+                    FontSize="18"
+                    FontWeight="SemiBold">
+                    <TextBlock Text="{Binding ConnectButtonText}" />
+                </ui:Button>
+
+                <!-- Status with colored dot -->
+                <StackPanel
+                    Margin="0,0,0,4"
+                    HorizontalAlignment="Center"
+                    Orientation="Horizontal">
+                    <Ellipse
+                        Width="10"
+                        Height="10"
+                        Margin="0,0,8,0"
+                        VerticalAlignment="Center"
+                        Fill="{Binding State, Converter={StaticResource StateToColor}}" />
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="13"
+                        Text="{Binding StatusText}" />
+                </StackPanel>
+
+                <!-- Active profile -->
+                <TextBlock
+                    Margin="0,4,0,0"
+                    HorizontalAlignment="Center"
+                    FontSize="12"
+                    Opacity="0.6"
+                    Text="{Binding ActiveText}" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Bottom bar: two equal buttons -->
+        <Grid Grid.Row="2" Margin="20,0,20,20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <ui:Button
+                Grid.Column="0"
+                Margin="0,0,6,0"
+                Padding="0,12"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                Appearance="Secondary"
+                Command="{Binding ShowConnectionsCommand}">
+                <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Margin="0,0,8,0" Symbol="List24" />
+                    <TextBlock Text="{Binding Source={x:Static loc:LocalizedStrings.Instance}, Path=Connections}" />
+                </StackPanel>
+            </ui:Button>
+
+            <ui:Button
+                Grid.Column="1"
+                Margin="6,0,0,0"
+                Padding="0,12"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                Appearance="Secondary"
+                Command="{Binding ShowSettingsCommand}">
+                <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Margin="0,0,8,0" Symbol="Settings24" />
+                    <TextBlock Text="{Binding Source={x:Static loc:LocalizedStrings.Instance}, Path=Settings}" />
+                </StackPanel>
+            </ui:Button>
+        </Grid>
+
+        <!-- Modal dialog host -->
+        <ui:ContentDialogHost
+            x:Name="DialogHost"
+            Grid.RowSpan="3"
+            Panel.ZIndex="100" />
+
+        <!-- Tray icon (sits in system tray, not a child of the window grid layout) -->
+        <tray:NotifyIcon
+            x:Name="TrayIcon"
+            FocusOnLeftClick="False"
+            Icon="pack://application:,,,/Resources/v2rayN.ico"
+            MenuOnRightClick="True"
+            TooltipText="VytswellRay"
+            LeftClick="OnTrayLeftClick">
+            <tray:NotifyIcon.Menu>
+                <ContextMenu>
+                    <MenuItem Header="{Binding ConnectButtonText}" Command="{Binding ToggleConnectCommand}" />
+                    <MenuItem Header="{Binding Source={x:Static loc:LocalizedStrings.Instance}, Path=TrayExit}" Command="{Binding QuitCommand}" />
+                </ContextMenu>
+            </tray:NotifyIcon.Menu>
+        </tray:NotifyIcon>
     </Grid>
-</Window>
+</ui:FluentWindow>
