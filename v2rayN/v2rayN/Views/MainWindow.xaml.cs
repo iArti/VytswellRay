@@ -1,3 +1,4 @@
+using System.Windows.Media.Effects;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 using Wpf.Ui.Tray.Controls;
@@ -15,39 +16,71 @@ public partial class MainWindow : FluentWindow
         DataContext = _vm;
         SystemThemeWatcher.Watch(this);
 
+        // Settings: custom in-window overlay panel (not a floating ContentDialog)
+        _vm.ShowSettingsRequested += async () =>
+        {
+            OpenSettingsOverlay();
+            await Task.CompletedTask;
+        };
+
+        SettingsPanel.CloseRequested += CloseSettingsOverlay;
+
+        // Connections: still uses WPF-UI ContentDialog + blur
         _vm.ShowConnectionsRequested += async () =>
         {
             var dialog = new ConnectionsDialog(DialogHost, this);
-            await dialog.ShowAsync();
+            await ShowWithBlur(dialog);
         };
 
-        _vm.ShowSettingsRequested += async () =>
+        // Clicking the dark backdrop behind the settings card closes it
+        SettingsOverlay.MouseDown += (_, e) =>
         {
-            var dialog = new SettingsDialog(DialogHost);
-            await dialog.ShowAsync();
+            if (e.Source == SettingsOverlay || e.Source is Border { Name: "" })
+                CloseSettingsOverlay();
         };
 
-
-        // Resurrect window when a 2nd instance signals via the EventWaitHandle
         ThreadPool.RegisterWaitForSingleObject(App.ProgramStarted, OnProgramStarted, null, -1, false);
 
-        // Auto-connect on launch
         Loaded += OnLoaded;
 
-        // Hide-to-tray instead of close
         Closing += (s, e) =>
         {
-            if (_vm.State == ConnectionState.Disconnected) return; // allow real close when not running
+            if (_vm.State == ConnectionState.Disconnected) return;
             e.Cancel = true;
             Hide();
         };
+    }
+
+    private void OpenSettingsOverlay()
+    {
+        MainContent.Effect = new BlurEffect { Radius = 8, KernelType = KernelType.Gaussian };
+        SettingsOverlay.Visibility = Visibility.Visible;
+    }
+
+    private void CloseSettingsOverlay()
+    {
+        SettingsOverlay.Visibility = Visibility.Collapsed;
+        MainContent.Effect = null;
+    }
+
+    // Blurs the main content while a ContentDialog (Connections) is shown.
+    private async Task ShowWithBlur(ContentDialog dialog)
+    {
+        MainContent.Effect = new BlurEffect { Radius = 8, KernelType = KernelType.Gaussian };
+        try
+        {
+            await dialog.ShowAsync();
+        }
+        finally
+        {
+            MainContent.Effect = null;
+        }
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         if (AppManager.Instance.Config.GuiItem.AutoConnect)
         {
-            // Brief pause so the UI settles before triggering connect
             await Task.Delay(800);
             await _vm.ConnectAsync();
         }

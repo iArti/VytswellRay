@@ -6,11 +6,14 @@
     xmlns:tray="clr-namespace:Wpf.Ui.Tray.Controls;assembly=Wpf.Ui.Tray"
     xmlns:loc="clr-namespace:v2rayN.Common"
     xmlns:conv="clr-namespace:v2rayN.Converters"
+    xmlns:view="clr-namespace:v2rayN.Views"
+    xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
     Title="VytswellRay"
-    Width="440"
-    Height="500"
-    MinWidth="380"
-    MinHeight="440"
+    Width="520"
+    Height="600"
+    MinWidth="460"
+    MinHeight="520"
+    Background="Transparent"
     ExtendsContentIntoTitleBar="True"
     WindowBackdropType="Mica"
     WindowCornerPreference="Round"
@@ -21,134 +24,173 @@
         <conv:BoolToVisibilityConverter x:Key="BoolToVis" />
     </Window.Resources>
 
+    <!--
+        Outer single-cell Grid: all layers stack here.
+        Background="Transparent" on FluentWindow lets DWM Mica show through
+        wherever WPF elements have no opaque fill.
+    -->
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
 
-        <!-- Title bar with globe (language toggle) -->
-        <ui:TitleBar
-            Grid.Row="0"
-            Title="VytswellRay"
-            ShowMaximize="False">
-            <ui:TitleBar.Header>
-                <StackPanel Orientation="Horizontal">
-                    <ui:Button
-                        Width="46"
-                        Height="32"
-                        Padding="0"
-                        VerticalAlignment="Center"
-                        Appearance="Transparent"
-                        Command="{Binding ToggleLanguageCommand}"
-                        ToolTip="RU / EN">
-                        <StackPanel Orientation="Horizontal">
-                            <ui:SymbolIcon FontSize="14" Symbol="Globe24" />
-                            <TextBlock
-                                Margin="4,0,0,0"
-                                VerticalAlignment="Center"
-                                FontSize="11"
-                                FontWeight="SemiBold"
-                                Text="{Binding Source={x:Static loc:LocalizedStrings.Instance}, Path=LanguageCode}" />
-                        </StackPanel>
-                    </ui:Button>
-                </StackPanel>
-            </ui:TitleBar.Header>
+        <!-- ═══ Layer 0 (bottom): all visible content — blurred when a dialog is open ═══ -->
+        <Grid x:Name="MainContent">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-        </ui:TitleBar>
+            <!--
+                Row 0 — title bar.
+                The globe button is overlaid directly here (Panel.ZIndex + IsHitTestVisibleInChrome)
+                instead of TitleBar.Header, which in WPF-UI renders as a sub-row *below*
+                the title chrome and therefore looks unanchored.
+            -->
+            <Grid Grid.Row="0">
+                <ui:TitleBar
+                    Title="VytswellRay"
+                    ShowMaximize="False" />
 
-        <!-- Main content: centered Connect button + status -->
-        <Grid Grid.Row="1" Margin="0">
-            <StackPanel
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center">
-
-                <!-- Big primary connect button -->
+                <!--
+                    Globe / language toggle: right side of title bar, before system buttons.
+                    Minimize + Close each ≈ 46 px → 100 px right margin clears them safely.
+                    WindowChrome.IsHitTestVisibleInChrome prevents the HTCAPTION drag area
+                    from swallowing the click.
+                -->
                 <ui:Button
-                    Width="220"
-                    Height="68"
-                    Margin="0,0,0,28"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    Width="64"
+                    Height="30"
+                    Margin="0,0,100,0"
+                    Padding="6,0"
+                    Appearance="Transparent"
+                    Panel.ZIndex="100"
+                    shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                    Command="{Binding ToggleLanguageCommand}"
+                    ToolTip="RU / EN">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <ui:SymbolIcon FontSize="13" Symbol="Globe24" />
+                        <TextBlock
+                            Margin="4,0,0,0"
+                            VerticalAlignment="Center"
+                            FontSize="11"
+                            FontWeight="SemiBold"
+                            Text="{Binding Source={x:Static loc:LocalizedStrings.Instance}, Path=LanguageCode}" />
+                    </StackPanel>
+                </ui:Button>
+            </Grid>
+
+            <!-- Row 1 — centered Connect button + status -->
+            <Grid Grid.Row="1">
+                <StackPanel
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+
+                    <ui:Button
+                        Width="240"
+                        Height="72"
+                        Margin="0,0,0,32"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Appearance="Primary"
+                        Command="{Binding ToggleConnectCommand}"
+                        CornerRadius="36"
+                        FontSize="19"
+                        FontWeight="SemiBold">
+                        <TextBlock Text="{Binding ConnectButtonText}" />
+                    </ui:Button>
+
+                    <!-- Status line: colored dot + text -->
+                    <StackPanel
+                        Margin="0,0,0,6"
+                        HorizontalAlignment="Center"
+                        Orientation="Horizontal">
+                        <Ellipse
+                            Width="10"
+                            Height="10"
+                            Margin="0,0,8,0"
+                            VerticalAlignment="Center"
+                            Fill="{Binding State, Converter={StaticResource StateToColor}}" />
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="13"
+                            Text="{Binding StatusText}" />
+                    </StackPanel>
+
+                    <!-- Active profile sub-label -->
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        FontSize="12"
+                        Opacity="0.6"
+                        Text="{Binding ActiveText}" />
+                </StackPanel>
+            </Grid>
+
+            <!-- Row 2 — bottom bar: two equal secondary buttons -->
+            <Grid Grid.Row="2" Margin="24,0,24,24">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <ui:Button
+                    Grid.Column="0"
+                    Margin="0,0,6,0"
+                    Padding="0,14"
+                    HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Center"
-                    VerticalContentAlignment="Center"
-                    Appearance="Primary"
-                    Command="{Binding ToggleConnectCommand}"
-                    CornerRadius="34"
-                    FontSize="18"
-                    FontWeight="SemiBold">
-                    <TextBlock Text="{Binding ConnectButtonText}" />
+                    Appearance="Secondary"
+                    Command="{Binding ShowConnectionsCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:SymbolIcon Margin="0,0,8,0" Symbol="List24" />
+                        <TextBlock Text="{Binding Source={x:Static loc:LocalizedStrings.Instance}, Path=Connections}" />
+                    </StackPanel>
                 </ui:Button>
 
-                <!-- Status with colored dot -->
-                <StackPanel
-                    Margin="0,0,0,4"
-                    HorizontalAlignment="Center"
-                    Orientation="Horizontal">
-                    <Ellipse
-                        Width="10"
-                        Height="10"
-                        Margin="0,0,8,0"
-                        VerticalAlignment="Center"
-                        Fill="{Binding State, Converter={StaticResource StateToColor}}" />
-                    <TextBlock
-                        VerticalAlignment="Center"
-                        FontSize="13"
-                        Text="{Binding StatusText}" />
-                </StackPanel>
-
-                <!-- Active profile -->
-                <TextBlock
-                    Margin="0,4,0,0"
-                    HorizontalAlignment="Center"
-                    FontSize="12"
-                    Opacity="0.6"
-                    Text="{Binding ActiveText}" />
-            </StackPanel>
+                <ui:Button
+                    Grid.Column="1"
+                    Margin="6,0,0,0"
+                    Padding="0,14"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    Appearance="Secondary"
+                    Command="{Binding ShowSettingsCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:SymbolIcon Margin="0,0,8,0" Symbol="Settings24" />
+                        <TextBlock Text="{Binding Source={x:Static loc:LocalizedStrings.Instance}, Path=Settings}" />
+                    </StackPanel>
+                </ui:Button>
+            </Grid>
         </Grid>
 
-        <!-- Bottom bar: two equal buttons -->
-        <Grid Grid.Row="2" Margin="20,0,20,20">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+        <!-- ═══ Layer 1: Settings overlay (dim backdrop + card) ═══ -->
+        <!--
+            Full-window hit-testable backdrop blocks all input to MainContent.
+            ZIndex 50 = above blurred MainContent, below ContentDialogHost (100).
+        -->
+        <Grid
+            x:Name="SettingsOverlay"
+            Panel.ZIndex="50"
+            Visibility="Collapsed">
 
-            <ui:Button
-                Grid.Column="0"
-                Margin="0,0,6,0"
-                Padding="0,12"
-                HorizontalAlignment="Stretch"
-                HorizontalContentAlignment="Center"
-                Appearance="Secondary"
-                Command="{Binding ShowConnectionsCommand}">
-                <StackPanel Orientation="Horizontal">
-                    <ui:SymbolIcon Margin="0,0,8,0" Symbol="List24" />
-                    <TextBlock Text="{Binding Source={x:Static loc:LocalizedStrings.Instance}, Path=Connections}" />
-                </StackPanel>
-            </ui:Button>
+            <Border Background="#A0000000" />
 
-            <ui:Button
-                Grid.Column="1"
-                Margin="6,0,0,0"
-                Padding="0,12"
-                HorizontalAlignment="Stretch"
-                HorizontalContentAlignment="Center"
-                Appearance="Secondary"
-                Command="{Binding ShowSettingsCommand}">
-                <StackPanel Orientation="Horizontal">
-                    <ui:SymbolIcon Margin="0,0,8,0" Symbol="Settings24" />
-                    <TextBlock Text="{Binding Source={x:Static loc:LocalizedStrings.Instance}, Path=Settings}" />
-                </StackPanel>
-            </ui:Button>
+            <Border
+                MaxWidth="460"
+                MaxHeight="520"
+                Margin="20"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center">
+                <view:SettingsDialog x:Name="SettingsPanel" />
+            </Border>
         </Grid>
 
-        <!-- Modal dialog host -->
+        <!-- ═══ Layer 2 (top): ContentDialogHost for ConnectionsDialog ═══ -->
         <ui:ContentDialogHost
             x:Name="DialogHost"
-            Grid.RowSpan="3"
             Panel.ZIndex="100" />
 
-        <!-- Tray icon (sits in system tray, not a child of the window grid layout) -->
+        <!-- System tray icon (not a WPF visual element) -->
         <tray:NotifyIcon
             x:Name="TrayIcon"
             FocusOnLeftClick="False"
@@ -163,5 +205,6 @@
                 </ContextMenu>
             </tray:NotifyIcon.Menu>
         </tray:NotifyIcon>
+
     </Grid>
 </ui:FluentWindow>

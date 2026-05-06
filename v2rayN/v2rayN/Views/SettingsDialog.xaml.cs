@@ -1,17 +1,18 @@
-using Wpf.Ui.Controls;
-
 namespace v2rayN.Views;
 
-public partial class SettingsDialog : ContentDialog
+public partial class SettingsDialog : UserControl
 {
     public SettingsDialogViewModel ViewModel { get; }
 
-    public SettingsDialog(ContentDialogHost dialogHost)
-        : base(dialogHost)
+    public event Action? CloseRequested;
+
+    public SettingsDialog()
     {
         ViewModel = new SettingsDialogViewModel();
         InitializeComponent();
         DataContext = ViewModel;
-        CloseButtonText = LocalizedStrings.Instance.Close;
     }
+
+    private void OnCloseClick(object sender, RoutedEventArgs e)
+        => CloseRequested?.Invoke();
 }
